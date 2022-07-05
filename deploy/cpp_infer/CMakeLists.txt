@@ -1,5 +1,7 @@
 project(ppocr CXX C)
 cmake_minimum_required(VERSION 3.14)
+#nen trang chur tai file third_party on jetson nano Jetpack4.5(4.4): nv-jetson-cuda10.2-cudnn8.0-trt7(all)
+#config path to third_party 
 
 option(WITH_MKL        "Compile demo with MKL/OpenBlas support, default use MKL."       ON)
 option(WITH_GPU        "Compile demo with GPU/CPU, default use CPU."                    OFF)
@@ -14,6 +16,19 @@ SET(TENSORRT_DIR "" CACHE PATH "Compile demo with TensorRT")
 
 set(DEMO_NAME "ppocr")
 
+set(PADDLE_LIB "/home/mq/Documents/minh/PaddleOCR/deploy/cpp_infer/paddle_inference_install_dir")
+set(OPENCV_DIR "/home")
+set(CUDA_LIB "/usr/local/cuda/lib64")
+set(CUDNN_LIB "/usr/lib/aarch64-linux-gnu")
+set(TENSORRT_DIR "/usr")
+
+message("PADDLE_LIB : " ${PADDLE_LIB})
+message("OPENCV_DIR : " ${OPENCV_DIR})
+message("CUDA_LIB : " ${CUDA_LIB})
+message("CUDNN_LIB : " ${CUDNN_LIB})
+message("TENSORRT_DIR : " ${TENSORRT_DIR})
+message("DEMO_NAME : " ${DEMO_NAME})
+message("WITH_MKL : " ${WITH_MKL})
 
 macro(safe_set_static_flag)
     foreach(flag_var
@@ -33,21 +48,23 @@ if(NOT DEFINED PADDLE_LIB)
   message(FATAL_ERROR "please set PADDLE_LIB with -DPADDLE_LIB=/path/paddle/lib")
 endif()
 
-if(NOT DEFINED OPENCV_DIR)
-    message(FATAL_ERROR "please set OPENCV_DIR with -DOPENCV_DIR=/path/opencv")
-endif()
+#if(NOT DEFINED OPENCV_DIR)
+#    message(FATAL_ERROR "please set OPENCV_DIR with -DOPENCV_DIR=/path/opencv")
+#endif()
 
 
 if (WIN32)
-  include_directories("${PADDLE_LIB}/paddle/include")
-  link_directories("${PADDLE_LIB}/paddle/lib")
+  include_directories("${PADDLE_LIB}/paddle/include") # tich hop cac file .h vao trong moi truong build
+  link_directories("${PADDLE_LIB}/paddle/lib") #su dung shared or static library
   find_package(OpenCV REQUIRED PATHS ${OPENCV_DIR}/build/ NO_DEFAULT_PATH)
 
 else ()
-  find_package(OpenCV REQUIRED PATHS ${OPENCV_DIR}/share/OpenCV NO_DEFAULT_PATH)
+  #find_package(OpenCV REQUIRED PATHS ${OPENCV_DIR}/share/OpenCV NO_DEFAULT_PATH)
   include_directories("${PADDLE_LIB}/paddle/include")
   link_directories("${PADDLE_LIB}/paddle/lib")
 endif ()
+
+find_package(OpenCV)
 include_directories(${OpenCV_INCLUDE_DIRS})
 
 if (WIN32)
@@ -55,7 +72,7 @@ if (WIN32)
     if(WITH_MKL)
         set(FLAG_OPENMP "/openmp")
     endif()
-    set(CMAKE_C_FLAGS_DEBUG   "${CMAKE_C_FLAGS_DEBUG} /bigobj /MTd ${FLAG_OPENMP}")
+    set(CMAKE_C_FLAGS_DEBUG   "${CMAKE_C_FLAGS_DEBUG} /bigobj /MTd ${FLAG_OPENMP}") #co chua tat ca cac file source .cpp
     set(CMAKE_C_FLAGS_RELEASE  "${CMAKE_C_FLAGS_RELEASE} /bigobj /MT ${FLAG_OPENMP}")
     set(CMAKE_CXX_FLAGS_DEBUG  "${CMAKE_CXX_FLAGS_DEBUG} /bigobj /MTd ${FLAG_OPENMP}")
     set(CMAKE_CXX_FLAGS_RELEASE   "${CMAKE_CXX_FLAGS_RELEASE} /bigobj /MT ${FLAG_OPENMP}")
@@ -71,12 +88,17 @@ else()
     if(WITH_MKL)
         set(FLAG_OPENMP "-fopenmp")
     endif()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -o3 ${FLAG_OPENMP} -std=c++11")
+    message("cmake cxx flags previous check" ${CMAKE_CXX_FLAGS})
+    #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -o3 ${FLAG_OPENMP} -std=c++11")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} ${FLAG_OPENMP} -std=c++11")
     set(CMAKE_STATIC_LIBRARY_PREFIX "")
-    message("cmake cxx flags" ${CMAKE_CXX_FLAGS})
+    #message("cmake cxx flags affter check" ${CMAKE_CXX_FLAGS})
 endif()
 
+
+message("WITH_GPU check " ${WITH_GPU})
 if (WITH_GPU)
+    message("WITH_GPU check " ${WITH_GPU})
     if (NOT DEFINED CUDA_LIB OR ${CUDA_LIB} STREQUAL "")
         message(FATAL_ERROR "please set CUDA_LIB with -DCUDA_LIB=/path/cuda-8.0/lib64")
     endif()
@@ -91,43 +113,49 @@ include_directories("${PADDLE_LIB}/third_party/install/protobuf/include")
 include_directories("${PADDLE_LIB}/third_party/install/glog/include")
 include_directories("${PADDLE_LIB}/third_party/install/gflags/include")
 include_directories("${PADDLE_LIB}/third_party/install/xxhash/include")
-include_directories("${PADDLE_LIB}/third_party/install/zlib/include")
-include_directories("${PADDLE_LIB}/third_party/install/onnxruntime/include")
-include_directories("${PADDLE_LIB}/third_party/install/paddle2onnx/include")
-include_directories("${PADDLE_LIB}/third_party/boost")
-include_directories("${PADDLE_LIB}/third_party/eigen3")
-
+#include_directories("${PADDLE_LIB}/third_party/install/zlib/include") # khong co
+#include_directories("${PADDLE_LIB}/third_party/install/onnxruntime/include")
+#include_directories("${PADDLE_LIB}/third_party/install/paddle2onnx/include")
+#include_directories("${PADDLE_LIB}/third_party/boost")
+#include_directories("${PADDLE_LIB}/third_party/eigen3")
+message("CMAKE_SOURCE_DIR check" ${CMAKE_SOURCE_DIR})
 include_directories("${CMAKE_SOURCE_DIR}/")
 
 if (NOT WIN32)
   if (WITH_TENSORRT AND WITH_GPU)
-     include_directories("${TENSORRT_DIR}/include")
-     link_directories("${TENSORRT_DIR}/lib")
+     message("WITH_TENSORRT AND WITH_GPU include CUDA " ${WITH_GPU})
+     include_directories("${TENSORRT_DIR}/include/x86_64-linux-gnu/")
+     link_directories("${TENSORRT_DIR}/lib/x86_64-linux-gnu/")
   endif()
 endif(NOT WIN32)
 
-link_directories("${PADDLE_LIB}/third_party/install/zlib/lib")
+link_directories("${PADDLE_LIB}/third_party/install/zlib/lib")#ko co
 
 link_directories("${PADDLE_LIB}/third_party/install/protobuf/lib")
 link_directories("${PADDLE_LIB}/third_party/install/glog/lib")
 link_directories("${PADDLE_LIB}/third_party/install/gflags/lib")
 link_directories("${PADDLE_LIB}/third_party/install/xxhash/lib")
-link_directories("${PADDLE_LIB}/third_party/install/onnxruntime/lib")
-link_directories("${PADDLE_LIB}/third_party/install/paddle2onnx/lib")
+#link_directories("${PADDLE_LIB}/third_party/install/onnxruntime/lib")
+#link_directories("${PADDLE_LIB}/third_party/install/paddle2onnx/lib")
 link_directories("${PADDLE_LIB}/paddle/lib")
 
-
+message("++++++++++++check minh WITH_MKL ${WITH_MKL}")
 if(WITH_MKL)
   include_directories("${PADDLE_LIB}/third_party/install/mklml/include")
   if (WIN32)
     set(MATH_LIB ${PADDLE_LIB}/third_party/install/mklml/lib/mklml.lib
             ${PADDLE_LIB}/third_party/install/mklml/lib/libiomp5md.lib)
   else ()
+    message("++++++++++++check minh WITH_MKL else 2 ${WITH_MKL}")
     set(MATH_LIB ${PADDLE_LIB}/third_party/install/mklml/lib/libmklml_intel${CMAKE_SHARED_LIBRARY_SUFFIX}
             ${PADDLE_LIB}/third_party/install/mklml/lib/libiomp5${CMAKE_SHARED_LIBRARY_SUFFIX})
+    message("++++++++++++check minh WITH_MKL else 3 ${WITH_MKL}")
     execute_process(COMMAND cp -r ${PADDLE_LIB}/third_party/install/mklml/lib/libmklml_intel${CMAKE_SHARED_LIBRARY_SUFFIX} /usr/lib)
+    message("++++++++++++check minh WITH_MKL else 4 ${PADDLE_LIB}/third_party/install/mklml/lib/libmklml_intel${CMAKE_SHARED_LIBRARY_SUFFIX}")
   endif ()
+  message("++++++++++++check minh WITH_MKL endif 5 ${WITH_MKL}")
   set(MKLDNN_PATH "${PADDLE_LIB}/third_party/install/mkldnn")
+  message("++++++++++++check minh WITH_MKL endif 6 ${MKLDNN_PATH}")
   if(EXISTS ${MKLDNN_PATH})
     include_directories("${MKLDNN_PATH}/include")
     if (WIN32)
@@ -145,6 +173,7 @@ else()
 endif()
 
 # Note: libpaddle_inference_api.so/a must put before libpaddle_inference.so/a
+message("++++++++++++check minh WITH_MKL endif 7 ${MATH_LIB}")
 if(WITH_STATIC_LIB)
   if(WIN32)
     set(DEPS
@@ -160,21 +189,26 @@ else()
   else()
     set(DEPS
         ${PADDLE_LIB}/paddle/lib/libpaddle_inference${CMAKE_SHARED_LIBRARY_SUFFIX})
+    message("++++++++++++DEPS 1 ${DEPS}")
   endif()
 endif(WITH_STATIC_LIB)
-
+message("++++++++++++check minh WITH_MKL endif 8 ${MATH_LIB}")
 if (NOT WIN32)
     set(DEPS ${DEPS}
         ${MATH_LIB} ${MKLDNN_LIB}
         glog gflags protobuf z xxhash
         )
+    message("++++++++++++DEPS 2 ${DEPS}")
     if(EXISTS "${PADDLE_LIB}/third_party/install/snappystream/lib")
         set(DEPS ${DEPS} snappystream)
+        message("++++++++++++DEPS 3 ${DEPS}")
     endif()
     if (EXISTS "${PADDLE_LIB}/third_party/install/snappy/lib")
         set(DEPS ${DEPS} snappy)
+        message("++++++++++++DEPS 4 ${DEPS}")
     endif()
 else()
+    message("++++++++++++DEPS else check ${DEPS}")
     set(DEPS ${DEPS}
         ${MATH_LIB} ${MKLDNN_LIB}
         glog gflags_static libprotobuf xxhash)
@@ -187,7 +221,7 @@ else()
     endif()
 endif(NOT WIN32)
 
-
+message("++++++++++++check minh WITH_MKL endif 9 ${MATH_LIB}")
 if(WITH_GPU)
   if(NOT WIN32)
     if (WITH_TENSORRT)
@@ -203,9 +237,9 @@ if(WITH_GPU)
   endif()
 endif()
 
-
+message("++++++++++++check minh WITH_MKL endif 10 ${MATH_LIB}")
 if (NOT WIN32)
-    set(EXTERNAL_LIB "-ldl -lrt -lgomp -lz -lm -lpthread")
+    set(EXTERNAL_LIB "-ldl -lrt -lgomp -lz -lm -lpthread -lxxhash")
     set(DEPS ${DEPS} ${EXTERNAL_LIB})
 endif()
 
@@ -215,17 +249,8 @@ include(FetchContent)
 include(external-cmake/auto-log.cmake)
 include_directories(${FETCHCONTENT_BASE_DIR}/extern_autolog-src)
 
-AUX_SOURCE_DIRECTORY(./src SRCS)
+AUX_SOURCE_DIRECTORY(/home/mq/Documents/minh/PaddleOCR/deploy/cpp_infer/src SRCS)
 add_executable(${DEMO_NAME} ${SRCS})
 target_link_libraries(${DEMO_NAME} ${DEPS})
-
-if (WIN32 AND WITH_MKL)
-    add_custom_command(TARGET ${DEMO_NAME} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${PADDLE_LIB}/third_party/install/mklml/lib/mklml.dll ./mklml.dll
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${PADDLE_LIB}/third_party/install/mklml/lib/libiomp5md.dll ./libiomp5md.dll
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${PADDLE_LIB}/third_party/install/mkldnn/lib/mkldnn.dll ./mkldnn.dll
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${PADDLE_LIB}/third_party/install/mklml/lib/mklml.dll ./release/mklml.dll
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${PADDLE_LIB}/third_party/install/mklml/lib/libiomp5md.dll ./release/libiomp5md.dll
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different ${PADDLE_LIB}/third_party/install/mkldnn/lib/mkldnn.dll ./release/mkldnn.dll
-    )
-endif()
+message("++++++++++++check minh WITH_MKL endif 11 ${SRCS}")
+message("++++++++++++check minh WITH_MKL endif 12 ${DEPS}")
